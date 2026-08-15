@@ -1,0 +1,53 @@
+name: OhMyMeme
+options:
+  bundleIdPrefix: com.ohmymeme
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+packages:
+  SDWebImage:
+    url: https://github.com/SDWebImage/SDWebImage
+    from: 5.19.0
+  SDWebImageWebPCoder:
+    url: https://github.com/SDWebImage/SDWebImageWebPCoder
+    from: 0.14.0
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+targets:
+  OhMyMeme:
+    type: application
+    platform: iOS
+    sources:
+      - path: OhMyMeme
+        excludes:
+          - Resources/Info.plist
+    dependencies:
+      - package: SDWebImage
+      - package: SDWebImageWebPCoder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ohmymeme.app
+        INFOPLIST_FILE: OhMyMeme/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+    scheme:
+      testTargets:
+        - OhMyMemeTests
+  OhMyMemeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OhMyMemeTests
+    dependencies:
+      - target: OhMyMeme
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ohmymeme.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/OhMyMeme.app/OhMyMeme"
+        BUNDLE_LOADER: "$(TEST_HOST)"
