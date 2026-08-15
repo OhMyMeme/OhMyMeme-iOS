@@ -19,7 +19,8 @@ jobs:
       - name: Build ad-hoc ipa
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          ./scripts/build-ipa.sh "$VERSION"
+          chmod +x scripts/*.sh
+          bash ./scripts/build-ipa.sh "$VERSION"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
