@@ -16,7 +16,7 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
-      - name: Build ad-hoc ipa
+      - name: Build ipa
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           chmod +x scripts/*.sh

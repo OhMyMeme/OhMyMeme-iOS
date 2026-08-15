@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # 用法: ./scripts/build-ipa.sh [版本号]  默认 0.1.0
 # 产物: dist/OhMyMeme-{版本}.ipa
-# 签名: ad-hoc（CODE_SIGN_IDENTITY="-"），供 AltStore/SideStore 用免费 Apple ID 自签名安装
+# 签名: 无签名构建（CODE_SIGNING_ALLOWED=NO）。Xcode 16+ / iOS 18 SDK 禁止 ad-hoc 签名，
+#       故产出未签名 ipa，由 AltStore/SideStore 安装时用用户免费 Apple ID 重签。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -16,7 +17,7 @@ fi
 echo "==> 生成 Xcode 工程"
 xcodegen generate
 
-echo "==> 编译 iphoneos（ad-hoc 签名）"
+echo "==> 编译 iphoneos（未签名）"
 xcodebuild \
   -project OhMyMeme.xcodeproj \
   -scheme OhMyMeme \
@@ -26,8 +27,7 @@ xcodebuild \
   -derivedDataPath build \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="1" \
-  CODE_SIGN_IDENTITY="-" \
-  CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_STYLE=Manual \
   build

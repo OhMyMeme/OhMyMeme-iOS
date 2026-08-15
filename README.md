@@ -2,13 +2,13 @@
 
 轻量化跨平台表情包管理系统的 iOS 端 — 与桌面端（[OhMyMeme](https://github.com/OhMyMeme/OhMyMeme)）、安卓端（[OhMyMeme-Android](https://github.com/OhMyMeme/OhMyMeme-Android)）存储结构一致，便于多端同步。
 
-> 分发方式：**自签名（AltStore / SideStore）**。因经济原因不上架 App Store，产出 **ad-hoc 签名 ipa**，由高级用户用个人免费 Apple ID 自行安装。
+> 分发方式：**自签名（AltStore / SideStore）**。因经济原因不上架 App Store，产出 **未签名 ipa**，由高级用户安装时用个人免费 Apple ID 重签。
 
 ## 当前进度（Phase 1 MVP 已完成）
 
 - [x] XcodeGen 工程脚手架（`project.yml` + 提交的 `.xcodeproj`）
 - [x] 暗色壳主界面 + 应用图标 + Info.plist（文件共享 / 打开方式导入 / 本地网络权限）
-- [x] ad-hoc ipa 构建脚本 + GitHub Actions 自动构建
+- [x] ipa 构建脚本（未签名）+ GitHub Actions 自动构建
 - [x] Phase 1 数据层：SQLite 7 表（与桌面端 `database.py` 一致）/ 配置 / Keychain 密钥加密 / 导入去重 / 缩略图 / 缓存扫描
 - [x] Phase 1 主界面：3 列网格 / 搜索（防抖）/ 分组胶囊（含子分组展开）/ 收藏 / 最近使用 / 未分类 / 分页加载 / 拖拽排序
 - [x] Phase 1 交互：分享 / 长按与「⋯」菜单（重命名 / 收藏 / 分组 / 删除）/ 相册与文件导入 / 清空本地数据
@@ -26,13 +26,13 @@
 # 生成 .xcodeproj（首次或修改 project.yml 后）
 ./scripts/generate.sh
 
-# 构建 ad-hoc 签名 ipa，产物 dist/OhMyMeme-{版本}.ipa
+# 构建未签名 ipa，产物 dist/OhMyMeme-{版本}.ipa
 ./scripts/build-ipa.sh 0.1.0
 ```
 
 CI：GitHub Actions（`.github/workflows/build.yml`）在 macOS runner 上自动构建，推 `v*` 标签或手动触发即可，产物为 artifact。
 
-> 签名说明：脚本用 ad-hoc 身份（`CODE_SIGN_IDENTITY="-"`）签名，不需要任何证书 / 开发者账号。若你的 Xcode 版本对 ad-hoc 报错，可改用无签名构建（`CODE_SIGNING_ALLOWED=NO`），AltStore 同样支持安装。
+> 签名说明：脚本产出**未签名** ipa（`CODE_SIGNING_ALLOWED=NO`）。Xcode 16+ / iOS 18 SDK 已禁止 ad-hoc（`CODE_SIGN_IDENTITY="-"`）签名，而 AltStore/SideStore 安装时本就会用用户自己的 Apple ID 重签，因此无需任何证书 / 开发者账号。
 
 ## 分发：AltStore / SideStore 自签名安装
 
@@ -64,7 +64,7 @@ OhMyMeme-iOS/
 │   └── Resources/                 # Info.plist、Assets
 ├── OhMyMemeTests/                 # XCTest
 ├── scripts/                       # generate.sh / build-ipa.sh
-└── .github/workflows/build.yml    # macOS runner 出 ad-hoc ipa
+└── .github/workflows/build.yml    # macOS runner 出未签名 ipa
 ```
 
 ## 技术栈
