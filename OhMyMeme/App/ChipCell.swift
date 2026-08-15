@@ -9,7 +9,7 @@ final class ChipCell: UICollectionViewCell {
         didSet { label.text = text }
     }
 
-    var isSelected: Bool = false {
+    override var isSelected: Bool {
         didSet { updateAppearance() }
     }
 

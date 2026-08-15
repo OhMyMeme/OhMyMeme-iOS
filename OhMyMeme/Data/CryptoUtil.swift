@@ -21,7 +21,7 @@ enum CryptoUtil {
         guard let data = plaintext.data(using: .utf8) else { return plaintext }
         do {
             let sealed = try AES.GCM.seal(data, using: loadOrCreateKey())
-            return sealed.combined.base64EncodedString()
+            return sealed.combined?.base64EncodedString() ?? ""
         } catch {
             return plaintext
         }

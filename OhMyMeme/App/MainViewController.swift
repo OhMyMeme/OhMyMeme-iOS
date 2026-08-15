@@ -364,7 +364,7 @@ final class MainViewController: UIViewController {
                 ac.addAction(UIAlertAction(title: "加入分组", style: .default) { [weak self] _ in
                     self?.presentAddToCollection(meme)
                 })
-                if (self?.selectedChipID ?? 0) > 0 {
+                if (self.selectedChipID ?? 0) > 0 {
                     ac.addAction(UIAlertAction(title: "从当前分组移除", style: .default) { [weak self] _ in
                         self?.removeFromCurrentCollection(meme)
                     })
@@ -714,10 +714,9 @@ extension MainViewController: UICollectionViewDragDelegate, UICollectionViewDrop
             self.persistOrder(self.memes.map { $0.id })
         }
 
-        if let animator = coordinator.drop(item.dragItem, toItemAt: destination) {
-            animator.addAnimations { [weak self] in
-                self?.gridView.reloadItems(at: [destination])
-            }
+        let animator = coordinator.drop(item.dragItem, toItemAt: destination)
+        animator.addAnimations { [weak self] in
+            self?.gridView.reloadItems(at: [destination])
         }
     }
 }

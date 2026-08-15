@@ -8,8 +8,8 @@ enum ImageInfo {
     /// 只读宽高（对应桌面端 PIL 尺寸读取 / 安卓 BitmapFactory bounds）
     static func bounds(_ data: Data) -> (w: Int, h: Int) {
         if FileUtils.detectExt(data) == ".webp" {
-            if let size = SDImageAWebPCoder.shared.decodedSize(with: data) {
-                return (Int(size.width), Int(size.height))
+            if let img = SDImageAWebPCoder.shared.decodedImage(with: data, options: nil) {
+                return (Int(img.size.width), Int(img.size.height))
             }
             return (0, 0)
         }

@@ -91,7 +91,7 @@ final class SQLiteDatabase {
             case let v as Bool:
                 sqlite3_bind_int64(stmt, idx, v ? 1 : 0)
             case let v as String:
-                sqlite3_bind_text(stmt, idx, v, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_text(stmt, idx, v, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
             default:
                 sqlite3_bind_null(stmt, idx)
             }
