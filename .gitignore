@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# 构建产物
+build/
+dist/
+Payload/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# 其他
+*.ipa
+*.log
