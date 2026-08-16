@@ -670,7 +670,7 @@ extension MainViewController: UICollectionViewDragDelegate, UICollectionViewDrop
         let item = UIDragItem(itemProvider: provider)
         item.localObject = meme
         item.previewProvider = { [weak self] in
-            self?.dragPreview(for: meme, at: indexPath) ?? UIDragPreview()
+            self?.dragPreview(for: meme, at: indexPath) ?? UIDragPreview(view: UIImageView(frame: CGRect(x: 0, y: 0, width: 120, height: 120)))
         }
         AppContext.shared.queue.async { AppContext.shared.db.recordUse(meme.id) }
         return [item]

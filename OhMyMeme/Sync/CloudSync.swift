@@ -125,24 +125,24 @@ enum CloudSync {
             if remoteEntry?["sha256"] as? String == entry["sha256"] as? String,
                bk.fileExists(remoteMemePath(root, fname)) {
                 skipped += 1
-                progress?.report(0, fname)
+                progress?.report(bytes: 0, file: fname)
                 continue
             }
             guard FileManager.default.fileExists(atPath: localFile.path) else {
                 errors += 1
                 failed.append(fname)
-                progress?.report(0, fname)
+                progress?.report(bytes: 0, file: fname)
                 continue
             }
             try? bk.ensureRemoteDir(memeDir)
             if bk.uploadFile(from: localFile, to: remoteMemePath(root, fname)) {
                 uploaded += 1
                 let size = ((try? FileManager.default.attributesOfItem(atPath: localFile.path))?[.size] as? Int) ?? 0
-                progress?.report(size, fname)
+                progress?.report(bytes: size, file: fname)
             } else {
                 errors += 1
                 failed.append(fname)
-                progress?.report(0, fname)
+                progress?.report(bytes: 0, file: fname)
             }
         }
         if errors > 0 { throw SyncError("\(errors) 个文件上传失败，未更新远端清单") }
@@ -214,7 +214,7 @@ enum CloudSync {
             if !Manifest.isSafeRemoteFname(fname) {
                 errors += 1
                 failed.append(fname)
-                progress?.report(0, fname)
+                progress?.report(bytes: 0, file: fname)
                 continue
             }
             let localFile = cacheDir.appendingPathComponent(fname)
@@ -222,7 +222,7 @@ enum CloudSync {
             let remoteHash = (rentry["sha256"] as? String) ?? ""
             if localHash == remoteHash && FileManager.default.fileExists(atPath: localFile.path) {
                 skipped += 1
-                progress?.report(0, fname)
+                progress?.report(bytes: 0, file: fname)
                 continue
             }
             let tmp = cacheDir.appendingPathComponent(".pull-\(UUID().uuidString).tmp")
@@ -231,13 +231,13 @@ enum CloudSync {
                 guard let data = try? Data(contentsOf: tmp), !data.isEmpty else {
                     errors += 1
                     failed.append(fname)
-                    progress?.report(0, fname)
+                    progress?.report(bytes: 0, file: fname)
                     continue
                 }
                 guard MemeImporter.isValidImage(data) else {
                     errors += 1
                     failed.append(fname)
-                    progress?.report(0, fname)
+                    progress?.report(bytes: 0, file: fname)
                     continue
                 }
                 try? FileManager.default.removeItem(at: localFile)
@@ -259,11 +259,11 @@ enum CloudSync {
                     )
                 }
                 downloaded += 1
-                progress?.report(rentry["file_size"] as? Int ?? data.count, fname)
+                progress?.report(bytes: rentry["file_size"] as? Int ?? data.count, file: fname)
             } else {
                 errors += 1
                 failed.append(fname)
-                progress?.report(0, fname)
+                progress?.report(bytes: 0, file: fname)
             }
         }
 
@@ -629,7 +629,7 @@ enum CloudSync {
         }
 
         private func pasv() throws -> sockaddr_in {
-            let reply = try cmd("PASV")
+            let reply = try cmdText("PASV")
             guard let openParen = reply.firstIndex(of: "("),
                   let closeParen = reply.firstIndex(of: ")"),
                   closeParen > openParen
@@ -658,8 +658,21 @@ enum CloudSync {
             return try readReply()
         }
 
+        /// 发送命令并返回最后一行响应文本（供解析 PASV 等含数据的响应）
+        @discardableResult
+        private func cmdText(_ line: String) throws -> String {
+            try sendAll(Data((line + "\r\n").utf8), on: fd)
+            return try readReplyText()
+        }
+
         @discardableResult
         private func readReply() throws -> Int {
+            let text = try readReplyText()
+            return Int(text.prefix(3)) ?? -1
+        }
+
+        @discardableResult
+        private func readReplyText() throws -> String {
             let first = try readLine()
             guard first.count >= 3, let code = Int(first.prefix(3)) else {
                 throw SyncError("FTP 响应异常: \(first)")
@@ -672,7 +685,7 @@ enum CloudSync {
                 }
             }
             if code >= 400 { throw SyncError("FTP server error: \(last)") }
-            return code
+            return last
         }
 
         private func readLine() throws -> String {
@@ -713,7 +726,7 @@ enum CloudSync {
         }
 
         private static func socket(host: String, port: Int) throws -> Int32 {
-            let sock = socket(AF_INET, SOCK_STREAM, 0)
+            let sock = Darwin.socket(AF_INET, SOCK_STREAM, 0)
             guard sock >= 0 else { throw SyncError("创建 socket 失败") }
             var hints = addrinfo()
             hints.ai_family = AF_INET
@@ -737,7 +750,7 @@ enum CloudSync {
         }
 
         private static func socket(addr: sockaddr_in, timeoutMs: Int) throws -> Int32 {
-            let sock = socket(AF_INET, SOCK_STREAM, 0)
+            let sock = Darwin.socket(AF_INET, SOCK_STREAM, 0)
             guard sock >= 0 else { throw SyncError("创建 socket 失败") }
             var addrCopy = addr
             var flags = fcntl(sock, F_GETFL, 0)
@@ -753,8 +766,15 @@ enum CloudSync {
                     throw SyncError("FTP 数据连接失败")
                 }
                 var wfd = fd_set()
-                FD_ZERO(&wfd)
-                FD_SET(sock, &wfd)
+                withUnsafeMutableBytes(of: &wfd) { raw in
+                    raw.initializeMemory(as: UInt8.self, repeating: 0)
+                }
+                withUnsafeMutableBytes(of: &wfd) { raw in
+                    let base = raw.bindMemory(to: Int32.self).baseAddress!
+                    let idx = Int(sock) / 32
+                    let bit = Int32(1) << Int32(sock % 32)
+                    base[idx] |= bit
+                }
                 var tv = timeval(tv_sec: timeoutMs / 1000, tv_usec: Int32((timeoutMs % 1000) * 1000))
                 let s = select(sock + 1, nil, &wfd, nil, &tv)
                 if s <= 0 {
@@ -873,7 +893,7 @@ enum CloudSync {
         func uploadFile(from local: URL, to remotePath: String) -> Bool {
             do {
                 let data = try Data(contentsOf: local)
-                let req = signedRequest(method: "PUT", path: canonPath(key(remotePath)))
+                var req = signedRequest(method: "PUT", path: canonPath(key(remotePath)))
                 req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
                 req.httpBody = data
                 let (code, _) = try perform(req)
