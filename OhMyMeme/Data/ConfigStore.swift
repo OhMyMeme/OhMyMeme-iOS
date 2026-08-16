@@ -73,6 +73,14 @@ final class ConfigStore {
         "lan_secret"
     ]
 
+    static func isSecretKey(_ key: String) -> Bool {
+        secretKeys.contains(key)
+    }
+
+    static var allKeys: [String] {
+        Array(defaults.keys)
+    }
+
     private var data: [String: Any]
     private let lock = NSLock()
 

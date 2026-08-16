@@ -120,10 +120,6 @@ final class MainViewController: UIViewController {
         gridView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(gridView)
 
-        let lp = UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:)))
-        lp.minimumPressDuration = 0.4
-        gridView.addGestureRecognizer(lp)
-
         emptyLabel.text = "没有匹配的表情包"
         emptyLabel.textColor = UIColor(hex: 0x71717A)
         emptyLabel.font = .systemFont(ofSize: 14)
@@ -333,17 +329,22 @@ final class MainViewController: UIViewController {
     }
 
     private func share(meme: Meme) {
-        AppContext.shared.queue.async {
+        AppContext.shared.queue.async { [weak self] in
             AppContext.shared.db.recordUse(meme.id)
+            let processed = MemeCopyProcessor.process(meme: meme)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                let url = processed?.url ?? Thumbnailer.findMemeFile(meme.filename)
+                guard let url else {
+                    self.toast("文件缺失")
+                    return
+                }
+                let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+                av.popoverPresentationController?.sourceView = self.view
+                av.popoverPresentationController?.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.midY, width: 0, height: 0)
+                self.present(av, animated: true)
+            }
         }
-        guard let url = Thumbnailer.findMemeFile(meme.filename) else {
-            toast("文件缺失")
-            return
-        }
-        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        av.popoverPresentationController?.sourceView = view
-        av.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
-        present(av, animated: true)
     }
 
     private func showMenu(for meme: Meme) {
@@ -538,13 +539,6 @@ final class MainViewController: UIViewController {
         present(nav, animated: true)
     }
 
-    @objc private func longPressed(_ g: UILongPressGestureRecognizer) {
-        guard g.state == .began, !gridView.hasActiveDrag else { return }
-        let p = g.location(in: gridView)
-        guard let ip = gridView.indexPathForItem(at: p), !canReorder() else { return }
-        showMenu(for: memes[ip.item])
-    }
-
     // MARK: - toast
 
     private var toastLabel: UILabel?
@@ -669,12 +663,80 @@ extension MainViewController: UICollectionViewDragDelegate, UICollectionViewDrop
         itemsForBeginning session: UIDragSession,
         at indexPath: IndexPath
     ) -> [UIDragItem] {
-        guard collectionView == gridView, canReorder() else { return [] }
+        guard collectionView == gridView, indexPath.item < memes.count else { return [] }
         let meme = memes[indexPath.item]
-        let provider = NSItemProvider(object: String(meme.id) as NSString)
+        let provider = NSItemProvider()
+        registerMemeContent(provider, for: meme)
         let item = UIDragItem(itemProvider: provider)
         item.localObject = meme
+        item.previewProvider = { [weak self] in
+            self?.dragPreview(for: meme, at: indexPath) ?? UIDragPreview()
+        }
+        AppContext.shared.queue.async { AppContext.shared.db.recordUse(meme.id) }
         return [item]
+    }
+
+    /// 注册拖拽内容：真实图片文件（处理结果或原图），让外部聊天应用能直接发送
+    private func registerMemeContent(_ provider: NSItemProvider, for meme: Meme) {
+        let ext = FileUtils.ext(fromName: meme.filename)
+        let concreteType: UTType? = {
+            switch ext {
+            case ".png": return .png
+            case ".jpg", ".jpeg": return .jpeg
+            case ".gif": return .gif
+            case ".webp": return .webP
+            case ".bmp": return .bmp
+            default: return nil
+            }
+        }()
+        let types = concreteType.map { [$0, UTType.image] } ?? [UTType.image]
+        for type in types {
+            provider.registerDataRepresentation(forTypeIdentifier: type.identifier, visibility: .all) { [weak self] completion in
+                guard let self else {
+                    completion(nil, NSError(domain: "OhMyMeme", code: -1, userInfo: [NSLocalizedDescriptionKey: "控制器已释放"]))
+                    return nil
+                }
+                self.loadMemeFileData(for: meme) { data, error in
+                    completion(data, error)
+                }
+                return nil
+            }
+        }
+    }
+
+    /// 后台读取原始表情文件数据（拖拽直发原图；copy_resize_mode 仅用于复制/分享，避免类型与字节不一致）
+    private func loadMemeFileData(for meme: Meme, completion: @escaping (Data?, Error?) -> Void) {
+        AppContext.shared.queue.async { [weak self] in
+            guard let self else {
+                completion(nil, NSError(domain: "OhMyMeme", code: -1, userInfo: [NSLocalizedDescriptionKey: "控制器已释放"]))
+                return
+            }
+            guard let url = Thumbnailer.findMemeFile(meme.filename),
+                  let data = try? Data(contentsOf: url)
+            else {
+                completion(nil, NSError(domain: "OhMyMeme", code: -1, userInfo: [NSLocalizedDescriptionKey: "文件缺失"]))
+                return
+            }
+            completion(data, nil)
+        }
+    }
+
+    /// 拖拽悬浮预览：优先取单元格当前图片，回退到缩略图文件
+    private func dragPreview(for meme: Meme, at indexPath: IndexPath) -> UIDragPreview {
+        let v = UIImageView(frame: CGRect(x: 0, y: 0, width: 120, height: 120))
+        v.contentMode = .scaleAspectFill
+        v.clipsToBounds = true
+        v.layer.cornerRadius = 8
+        if let cell = gridView.cellForItem(at: indexPath) as? MemeGridCell {
+            v.image = cell.currentImage
+        }
+        if v.image == nil {
+            let thumb = Thumbnailer.thumbnailURL(for: meme.id)
+            if FileManager.default.fileExists(atPath: thumb.path) {
+                v.image = UIImage(contentsOfFile: thumb.path)
+            }
+        }
+        return UIDragPreview(view: v)
     }
 
     func collectionView(_ collectionView: UICollectionView, canHandle session: UIDropSession) -> Bool {

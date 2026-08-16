@@ -12,6 +12,11 @@ final class MemeGridCell: UICollectionViewCell {
 
     var menuHandler: (() -> Void)?
 
+    /// 当前显示的图片（拖拽悬浮预览用）
+    var currentImage: UIImage? {
+        animatedView.isHidden ? imageView.image : animatedView.image
+    }
+
     private static let placeholder: UIImage = {
         UIGraphicsImageRenderer(size: CGSize(width: 150, height: 150)).image { ctx in
             UIColor(hex: 0x1E1E22).setFill()
