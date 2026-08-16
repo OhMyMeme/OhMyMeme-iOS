@@ -642,7 +642,8 @@ enum CloudSync {
             else { throw SyncError("FTP PASV 响应格式错误") }
             let host = "\(parts[0]).\(parts[1]).\(parts[2]).\(parts[3])"
             let port = p1 * 256 + p2
-            guard let h = inet_addr(host), h != INADDR_NONE else {
+            let h = inet_addr(host)
+            guard h != INADDR_NONE else {
                 throw SyncError("FTP PASV 地址无效: \(host)")
             }
             var addr = sockaddr_in()
