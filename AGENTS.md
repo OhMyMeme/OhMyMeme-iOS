@@ -166,6 +166,7 @@ Documents/                          ← 配置根（对应桌面端 %APPDATA%/Oh
 - **命令**：`ping`/`pull_manifest`/`push_manifest`/`pull_file`/`push_file`/`get_config`/`send_config`/`device_info`
 - **安全校验**：`Manifest.isSafeRemoteFname` 文件名校验；单文件 ≤64MB；清单 sha256 一致性校验；pull 下载后校验可解码才落盘（杜绝孤儿文件）
 - 设置页「同步电脑表情」：扫描发现 → 选 peer → 有密钥时输入密钥 → 连接（含设备确认 `device_info`，等待电脑端弹窗允许）→ 弹菜单选拉取/上传/配置同步/密钥同步（`allow_secret_config` 开启时显示，危险操作弹警告）
+- **IP:端口 直连**（设置页「局域网互联」新增，对齐安卓端 `connectDirect`）：手动输入 `IP:端口`（如 `192.168.1.100:17852`）+ 可选配对密钥，`parseHostPort` 校验（端口 1...65535、IP 无空白）后构造 `LanPeer(name=ip, os="", ver="", needSecret=!secret.isEmpty)` 直接走 `connectAndSync`（复用 `LanClient.connect`，跳过 UDP 扫描），适用于同一局域网内扫描不到的电脑（手动指定端口 / 跨网段路由可达）
 
 ## 已实现 / 未实现
 ### 复制处理（MemeCopyProcessor.swift + GifEncoder.swift）
@@ -181,7 +182,7 @@ Documents/                          ← 配置根（对应桌面端 %APPDATA%/Oh
 - Phase 1 数据层：SQLite 7 表/配置/Keychain 密钥加密/导入去重/缩略图/缓存扫描
 - 分享/「⋯」菜单（重命名/收藏/分组/删除）/相册与文件导入/清空本地数据
 - 复制处理模式 1/2（WebP 缩放 / 转 GIF，字节级对齐桌面端）
-- 局域网互联客户端（UDP 发现 + HMAC-SHA256 挑战/应答 + AES-GCM 加密帧 + 设备确认 + 配置/密钥双向同步）
+- 局域网互联客户端（UDP 发现 + HMAC-SHA256 挑战/应答 + AES-GCM 加密帧 + 设备确认 + 配置/密钥双向同步 + IP:端口 直连）
 - 更新检查（GitHub Releases + 镜像回退 + 下载地址镜像探测）
 - 云端同步（FTP/S3/R2/WebDAV + SigV4 + 清单 push/pull/test/status/清理孤儿/删除远端全部）
 - 拖拽发送：长按拖动表情到微信/QQ 等聊天窗口直发原图（`registerDataRepresentation` 具体 UTI + `UTType.image`，全 tab 可拖，拖拽预览 + recordUse；网格内重排保留）

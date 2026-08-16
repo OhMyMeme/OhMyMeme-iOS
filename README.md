@@ -16,7 +16,7 @@
 - [x] Phase 1 设置页 + 单元测试（schema / SHA-256 / 魔数 / 去重 / 业务流）
 - [ ] Phase 2（进行中）：复制处理与隐写 GIF、云端同步（FTP/S3/R2/WebDAV）、局域网互联、更新检查
   - [x] 复制处理模式 1/2（WebP 缩放 / 转 GIF，字节级对齐桌面端）
-  - [x] 局域网互联客户端（UDP 发现 + HMAC-SHA256 挑战/应答 + AES-GCM 加密帧，协议对齐 `lan.py`；设置页「同步电脑表情」）
+  - [x] 局域网互联客户端（UDP 发现 + HMAC-SHA256 挑战/应答 + AES-GCM 加密帧，协议对齐 `lan.py`；设置页「同步电脑表情」+ IP:端口 直连）
   - [x] 更新检查（GitHub Releases + 镜像，设置页「检查更新」）
   - [x] 云端同步（FTP/S3/R2/WebDAV，清单对齐 `sync.py`+`manifest.py`；设置页「云端同步配置与操作」）
   - [ ] 隐写 GIF（mode 3，依赖 XZ/LZMA2 方案）

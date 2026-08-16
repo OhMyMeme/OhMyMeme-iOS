@@ -3,7 +3,7 @@ import UIKit
 final class SettingsViewController: UITableViewController {
 
     private enum RowKind {
-        case autoPlayGif, showUncategorized, copyMode, storage, clearAll, version, lanSync, checkUpdate, cloudSync
+        case autoPlayGif, showUncategorized, copyMode, storage, clearAll, version, lanSync, lanDirect, checkUpdate, cloudSync
     }
 
     private struct Section {
@@ -38,7 +38,8 @@ final class SettingsViewController: UITableViewController {
                 (.copyMode, "复制处理模式")
             ]),
             Section(title: "局域网互联", rows: [
-                (.lanSync, "同步电脑表情")
+                (.lanSync, "同步电脑表情"),
+                (.lanDirect, "IP:端口 直连")
             ]),
             Section(title: "云端同步", rows: [
                 (.cloudSync, "云端同步配置与操作")
@@ -104,6 +105,9 @@ final class SettingsViewController: UITableViewController {
         case .lanSync:
             cell.detailTextLabel?.text = "扫描电脑 → 拉取/推送"
             cell.accessoryType = .disclosureIndicator
+        case .lanDirect:
+            cell.detailTextLabel?.text = "跳过扫描，手动指定电脑"
+            cell.accessoryType = .disclosureIndicator
         case .cloudSync:
             cell.detailTextLabel?.text = "类型：\(syncTypeName())"
             cell.accessoryType = .disclosureIndicator
@@ -127,6 +131,8 @@ final class SettingsViewController: UITableViewController {
             showCopyModePicker()
         case .lanSync:
             startLanSync()
+        case .lanDirect:
+            startLanDirect()
         case .cloudSync:
             startCloudSync()
         case .checkUpdate:
@@ -169,6 +175,45 @@ final class SettingsViewController: UITableViewController {
         ac.addAction(UIAlertAction(title: "取消", style: .cancel))
         ac.popoverPresentationController?.sourceView = view
         present(ac, animated: true)
+    }
+
+    /// IP:端口 直连：跳过 UDP 扫描，手动指定电脑地址与端口直接建立加密会话
+    private func startLanDirect() {
+        let ac = UIAlertController(title: "IP:端口 直连", message: "适用于同一局域网内扫描不到的电脑，如 192.168.1.100:17852", preferredStyle: .alert)
+        ac.addTextField { tf in
+            tf.placeholder = "IP:端口"
+            tf.keyboardType = .numbersAndPunctuation
+            tf.autocorrectionType = .no
+        }
+        ac.addTextField { tf in
+            tf.placeholder = "配对密钥（电脑端开启时填写）"
+            tf.isSecureTextEntry = true
+            tf.autocorrectionType = .no
+        }
+        ac.addAction(UIAlertAction(title: "取消", style: .cancel))
+        ac.addAction(UIAlertAction(title: "连接", style: .default) { [weak self, weak ac] _ in
+            guard let ac else { return }
+            let raw = ac.textFields?[0].text?.trimmingCharacters(in: .whitespaces) ?? ""
+            let secret = ac.textFields?[1].text ?? ""
+            guard let (ip, port) = Self.parseHostPort(raw) else {
+                self?.showAlert("地址无效", "请输入合法的 IP:端口，如 192.168.1.100:17852")
+                return
+            }
+            let peer = LanClient.LanPeer(name: ip, os: "", ver: "", needSecret: !secret.isEmpty, ip: ip, port: port)
+            self?.connectAndSync(peer: peer, secret: secret)
+        })
+        present(ac, animated: true)
+    }
+
+    /// 解析 "IP:端口"，端口范围 1...65535；校验失败返回 nil
+    private static func parseHostPort(_ raw: String) -> (ip: String, port: Int)? {
+        guard let idx = raw.lastIndex(of: ":") else { return nil }
+        let ip = String(raw[..<idx]).trimmingCharacters(in: .whitespaces)
+        let portStr = String(raw[raw.index(after: idx)...]).trimmingCharacters(in: .whitespaces)
+        guard !ip.isEmpty, !ip.contains(where: { $0.isWhitespace }),
+              let port = Int(portStr), (1...65535).contains(port)
+        else { return nil }
+        return (ip, port)
     }
 
     private func askSecretIfNeeded(peer: LanClient.LanPeer) {
