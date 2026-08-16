@@ -539,9 +539,10 @@ enum CloudSync {
                 defer { try? out.close() }
                 var tmp = [UInt8](repeating: 0, count: 65536)
                 while true {
+                    let cap = tmp.count
                     let n = tmp.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> Int in
                         guard let base = ptr.baseAddress else { return -1 }
-                        return recv(dataSock, base, tmp.count, 0)
+                        return recv(dataSock, base, cap, 0)
                     }
                     if n == 0 { break }
                     if n < 0 { throw SyncError("FTP 数据读取失败") }
@@ -582,9 +583,10 @@ enum CloudSync {
                 var all = Data()
                 var tmp = [UInt8](repeating: 0, count: 65536)
                 while true {
+                    let cap = tmp.count
                     let n = tmp.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> Int in
                         guard let base = ptr.baseAddress else { return -1 }
-                        return recv(dataSock, base, tmp.count, 0)
+                        return recv(dataSock, base, cap, 0)
                     }
                     if n == 0 { break }
                     if n < 0 { throw SyncError("FTP NLST 读取失败") }
@@ -698,9 +700,10 @@ enum CloudSync {
                     return line
                 }
                 var tmp = [UInt8](repeating: 0, count: 4096)
+                let cap = tmp.count
                 let n = tmp.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> Int in
                     guard let base = ptr.baseAddress else { return -1 }
-                    return recv(fd, base, tmp.count, 0)
+                    return recv(fd, base, cap, 0)
                 }
                 if n == 0 { throw SyncError("FTP 连接已关闭") }
                 if n < 0 {
